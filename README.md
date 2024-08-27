@@ -1,84 +1,113 @@
-# Learning Iterative Neural Optimizers for Image Steganography (LISO)
+# [==> jump to official code of LISO](https://github.com/cxy1997/LISO)
 
-This repo contains official PyTorch implementation of [Learning Iterative Neural Optimizers for Image Steganography](https://openreview.net/pdf?id=gLPkzWjdhBN) (ICLR 2023).
+![architecture.png](architecture.png)
 
+##  an unofficial `LISO` implement
+# this `LISO` can hide a ``Binary secret`` or a ``RGB secret``
+### there is no `Critic` module in this `LISO`
+
+## requirements
+```text
+pandas==2.2.2
+Pillow==10.4.0
+pytorch_lightning==1.5.0
+torch==2.3.1+cu121
+torchmetrics==1.4.1
+torchvision==0.18.1+cu121
+tensorboard=2.17.1
 ```
-@inproceedings{chenlearning,
-  title={Learning Iterative Neural Optimizers for Image Steganography},
-  author={Chen, Xiangyu and Kishore, Varsha and Weinberger, Kilian Q},
-  booktitle={The Eleventh International Conference on Learning Representations}
-}
+
+## Usage
+
+### inference
+```python
+from hide import inference
+
+inference("<ckpt_path>", cover_path="<cover_path>", secret_path="<secret_path>")
 ```
 
-## Introduction
-LISO is a learned steganographic optimizer that operates on the manifold of natural images. 
-Compared to SOTA approaches, LISO is faster and more reliable, reducing recovery error rate by multiple orders of magnitude, and achieving zero error up to 3 bits per pixel. 
-LISO is also highly extensible, e.g., to JPEG compression, or avoiding steganalysis detection.
+or you can use [pretrained weights](./lightning_logs/version_2/checkpoints/epoch=99-step=39999.ckpt) and [provided cover and secret](./data/test_image) to inference, result is default save at [result.jpg](./result.jpg).  
+JUST RUN  `python hide.py`  
 
-![Figure](liso.jpg)
-*LISO iteratively optimizing a sample image with 3 bits encoded in each pixel, achieving **zero** error in 8 steps.*
+### training
 
-## Prerequisites
-- Python >= 3.6
-- pyTorch >= 1.10.2
-- CUDA >= 10.2
-- cuDNN >= 7.6
+1. provide **2 ``csv`` file** (one for train, another for valid) that **contains ``path`` column**, with the content being the **absolute path of each image**. [See Example](data/train.csv). 1000 images is enough.
+2. 
+```python
+import pytorch_lightning as pl
 
-## Getting Started
-Download and extract [subsampled image datasets](https://drive.google.com/file/d/1ai9D3Z0lcdEnRX24pUL_XfuFSjWtbh5K) and [pretrained weights](https://drive.google.com/file/d/1128829Sq5nJJmckqYcdTUs4EmBeg3NGH) into `LISO/`. 
-We provide our custom subset of [Div2k](https://data.vision.ee.ethz.ch/cvl/DIV2K/), [CelebA](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html), and [MS COCO](https://cocodataset.org), and corresponding trained LISO model weights under payload of `1-4 bits per pixel` / `JPEG compression` (on Div2k). 
-Trained [SiaStegNet](https://ieeexplore.ieee.org/document/9153041) and [XuNet](https://dl.acm.org/doi/10.1145/3082031.3083236) weights are also included.
+from model import LISO, SECRET_TYPE
+from util.data.datamodule import LISODataModule
 
-To use a custom dataset, organize images in the format below:
+if __name__ == '__main__':
+    hiding_type: SECRET_TYPE = "binary"  # can be `binary` or `image`
+    cover_size = (3, 128, 128)  # cover H,W and secret H,W must be the same
+    secret_size = (3, 128, 128)  # means 3bpp capacity if `binary`, or be a RBG image if `image`
+    iters = 15  # iter times of the iterative optimizer
+    hidden_ch = 32  # a hyper param that controls the hidden channels
+    eta = 1.0  # the ``η`` in ``algorithm1`` and ``figure2`` in the paper
+    gamma = 0.8  # the ``γ`` in ``equation2``, it's a decay factor
 
-<pre>
-LISO/
-    | datasets/
-        | DATASET_NAME/
-            | train/
-                | _
-                    | img0000.xxx
-                    | img0001.xxx
-            | val/
-                | _
-                    | img0000.xxx
-                    | img0001.xxx
-</pre>
+    lr = 1e-4
+    
+    # provide the data csv
+    train_csv_path = "<train>.csv"
+    val_csv_path = "<valid>.csv"
 
-### Evaluation
-LISO
+    batch_size = 2
+    num_workers = 4
+    
+    # initial dataloader
+    data_module = LISODataModule(
+        train_csv_path=train_csv_path,
+        val_csv_path=val_csv_path,
+        cover_size=cover_size,
+        secret_size=secret_size,
+        secret_type=hiding_type,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        
+        train_limit=800,  # 800 is enough
+        val_limit=200
+    )
+    
+    # LISO
+    model = LISO(
+        cover_size=cover_size,
+        secret_size=secret_size,
+        secret_type=hiding_type,
+        iters=iters,
+        hidden_ch=hidden_ch,
+        eta=eta,
+        gamma=gamma,
+        lr=lr,
+    )
+    
+    # training
+    trainer = pl.Trainer(
+        gpus=1,
+        log_every_n_steps=1,
+        max_epochs=100
+    )
+    trainer.fit(model, data_module)
+```
+
+3. watch logs
 ```bash
-python train_bits.py --eval --bits 1 --dataset div2k --load checkpoints/div2k/1_bits.steg
+tensorboard --logdir=lightning_logs
 ```
 
-LISO + L-BFGS
-```bash
-python train_bits.py --eval --lbfgs --bits 1 --dataset div2k --load checkpoints/div2k/1_bits.steg
-```
+## Result
 
-LISO + JPEG
-```bash
-python train_bits.py --eval --eval-jpeg --bits 1 --dataset div2k --load checkpoints/div2k_jpeg/1_bits.steg
-```
+`binary`  
+_not finished yet_  
 
-LISO + Avoiding XuNet Detection
-```bash
-python train_bits.py --eval --test-xunet-weight 100 --bits 1 --dataset div2k --load checkpoints/div2k/1_bits.steg
-```
+`image`  
+**cover/stego PSNR: 32.61dB, secret/secret-recovery PSNR: 33.52dB**  
+_(in this pic, cover/stego psnr: 33.66, cover/stego ssim: 0.9035, secret/recovery psnr: 34.67, secret/recover ssim: 0.9545)_  
+![result-image](result.jpg)
 
-### Training
-LISO
-```bash
-python train_bits.py --bits 1 --dataset div2k
-```
+## More
+Under the above configuration, `LISO` has only **152k** params  
+You can train `LISO` in several hours  
 
-LISO + JPEG
-```bash
-python train_bits.py --bits 1 --dataset div2k --jpeg
-```
-
-## Acknowledgements
-- [SteganoGAN](https://github.com/DAI-Lab/SteganoGAN)
-- [RAFT](https://github.com/princeton-vl/RAFT)
-- [SiaStegNet](https://github.com/SiaStg/SiaStegNet)
-- [XuNet](https://github.com/brijeshiitg/XuNet-Structural-Design-of-Convolutional-Neural-Networksfor-Steganalysis)
