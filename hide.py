@@ -29,7 +29,7 @@ def inference(ckpt_path: str, cover_path: str, secret_path: str = None, save_pat
     print("secret type: ", secret_type)
     if secret_type == "binary":
         if secret_type is not None:
-            warnings.warn("Warning: `secret_path` is not necessary for `secret_type='binary'`", UserWarning)
+            warnings.warn("`secret_path` is not necessary for `secret_type='binary'`", UserWarning)
     elif secret_type == "image":
         if secret_type is None:
             raise TypeError("Missing argument: `secret_path` is necessary for `secret_type='image'`")
@@ -45,7 +45,7 @@ def inference(ckpt_path: str, cover_path: str, secret_path: str = None, save_pat
         secret_transformer = get_transformer(secret_size[1:])
         secret = secret_transformer(secret).unsqueeze(0).to(device)
     elif secret_type == "binary":
-        secret = torch.zeros(*secret_size).random_(0, 2).to(device)
+        secret = torch.zeros(*secret_size).random_(0, 2).unsqueeze(0).to(device)
     model_input = (cover, secret)
 
     model_output = model(model_input)
@@ -63,4 +63,5 @@ def inference(ckpt_path: str, cover_path: str, secret_path: str = None, save_pat
 
 
 if __name__ == '__main__':
-    inference("./lightning_logs/version_2/checkpoints/epoch=99-step=39999.ckpt", cover_path="./data/test_image/cover.jpg", secret_path="./data/test_image/secret.jpg")
+    inference("./lightning_logs/version_2/checkpoints/epoch=99-step=39999.ckpt", cover_path="./data/test_image/cover.jpg", secret_path="./data/test_image/secret.jpg", save_path="./result-image.jpg")
+    inference("./lightning_logs/version_3/checkpoints/epoch=99-step=39999.ckpt", cover_path="./data/test_image/cover.jpg", save_path="./result-binary.jpg")

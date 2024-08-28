@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from functools import partial
-from typing import Optional, Sequence
+from typing import Optional
 
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
