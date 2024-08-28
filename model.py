@@ -1,5 +1,6 @@
 import gc
-from typing import Sequence, Literal
+from collections.abc import Sequence
+from typing import Literal
 
 import pytorch_lightning as pl
 import torchvision

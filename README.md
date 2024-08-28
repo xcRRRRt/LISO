@@ -2,11 +2,14 @@
 
 ![architecture.png](architecture.png)
 
-##  an unofficial `LISO` implement
+## an unofficial `LISO` implement
+
 # this `LISO` can hide a ``Binary secret`` or a ``RGB secret``
+
 ### there is no `Critic` module in this `LISO`
 
 ## requirements
+
 ```text
 pandas==2.2.2
 Pillow==10.4.0
@@ -20,19 +23,22 @@ tensorboard=2.17.1
 ## Usage
 
 ### inference
+Run  `python hide.py` to use the pretrained weights([image](./lightning_logs/version_2/checkpoints/epoch=99-step=39999.ckpt), [binary](./lightning_logs/version_3/checkpoints/epoch=99-step=39999.ckpt))
+
+Or
 ```python
 from hide import inference
 
 inference("<ckpt_path>", cover_path="<cover_path>", secret_path="<secret_path>")
 ```
-
-or you can use [pretrained weights](./lightning_logs/version_2/checkpoints/epoch=99-step=39999.ckpt) and [provided cover and secret](./data/test_image) to inference, result is default save at [result.jpg](./result.jpg).  
-JUST RUN  `python hide.py`  
+result saves at `./result.jpg` by default
 
 ### training
 
-1. provide **2 ``csv`` file** (one for train, another for valid) that **contains ``path`` column**, with the content being the **absolute path of each image**. [See Example](data/train.csv). 1000 images is enough.
-2. 
+1. provide **2 ``csv`` file** (one for train, another for valid) that **contains ``path`` column**, with the content being the **absolute path of each image
+   **. [See Example](data/train.csv). 1000 images is enough.
+2.
+
 ```python
 import pytorch_lightning as pl
 
@@ -49,14 +55,14 @@ if __name__ == '__main__':
     gamma = 0.8  # the ``γ`` in ``equation2``, it's a decay factor
 
     lr = 1e-4
-    
+
     # provide the data csv
     train_csv_path = "<train>.csv"
     val_csv_path = "<valid>.csv"
 
     batch_size = 2
     num_workers = 4
-    
+
     # initial dataloader
     data_module = LISODataModule(
         train_csv_path=train_csv_path,
@@ -66,11 +72,11 @@ if __name__ == '__main__':
         secret_type=hiding_type,
         batch_size=batch_size,
         num_workers=num_workers,
-        
+
         train_limit=800,  # 800 is enough
         val_limit=200
     )
-    
+
     # LISO
     model = LISO(
         cover_size=cover_size,
@@ -82,7 +88,7 @@ if __name__ == '__main__':
         gamma=gamma,
         lr=lr,
     )
-    
+
     # training
     trainer = pl.Trainer(
         gpus=1,
@@ -93,6 +99,7 @@ if __name__ == '__main__':
 ```
 
 3. watch logs
+
 ```bash
 tensorboard --logdir=lightning_logs
 ```
@@ -100,14 +107,17 @@ tensorboard --logdir=lightning_logs
 ## Result
 
 `binary`  
-_not finished yet_  
+**cover/stego PSNR: 33.71dB, secret error rate: 0%**  
+_(in this pic, cover/stego psnr: 32.60, cover/stego ssim: 0.9046, accuracy: 1.0)_  
+![result-binary](result-binary.jpg)  
 
 `image`  
 **cover/stego PSNR: 32.61dB, secret/secret-recovery PSNR: 33.52dB**  
 _(in this pic, cover/stego psnr: 33.66, cover/stego ssim: 0.9035, secret/recovery psnr: 34.67, secret/recover ssim: 0.9545)_  
-![result-image](result.jpg)
+![result-image](result-image.jpg)
 
 ## More
+
 Under the above configuration, `LISO` has only **152k** params  
 You can train `LISO` in several hours  
 
